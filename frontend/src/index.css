@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-navy-800 text-white font-sans antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-navy-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-navy-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-blue-500;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blue-500 hover:bg-blue-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-navy-800 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply border border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white font-semibold px-5 py-2.5 rounded-lg transition-all duration-200;
+  }
+
+  .btn-ghost {
+    @apply text-gray-400 hover:text-white hover:bg-navy-700 px-4 py-2 rounded-lg transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-navy-700 border border-navy-600 rounded-xl p-5 transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10;
+  }
+
+  .input {
+    @apply w-full bg-navy-800 border border-navy-600 text-white placeholder-gray-500 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-300 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-blue {
+    @apply badge bg-blue-500/20 text-blue-300;
+  }
+
+  .badge-green {
+    @apply badge bg-green-500/20 text-green-300;
+  }
+
+  .badge-yellow {
+    @apply badge bg-yellow-500/20 text-yellow-300;
+  }
+
+  .badge-red {
+    @apply badge bg-red-500/20 text-red-300;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700 transition-all duration-200 cursor-pointer text-sm font-medium;
+  }
+
+  .sidebar-item-active {
+    @apply sidebar-item bg-navy-700 text-white border-r-2 border-blue-500;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent;
+  }
+
+  .glow-blue {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+  }
+
+  /* Markdown rendered inside AI chat bubbles */
+  .prose-chat {
+    @apply text-sm leading-relaxed text-gray-200;
+  }
+  .prose-chat p { @apply mb-2 last:mb-0; }
+  .prose-chat ul { @apply list-disc list-inside mb-2 space-y-1; }
+  .prose-chat ol { @apply list-decimal list-inside mb-2 space-y-1; }
+  .prose-chat li { @apply text-gray-200; }
+  .prose-chat h1,
+  .prose-chat h2 { @apply text-white font-bold mb-1 mt-2 text-base; }
+  .prose-chat h3 { @apply text-white font-semibold mb-1 mt-2 text-sm; }
+  .prose-chat strong { @apply text-white font-semibold; }
+  .prose-chat em { @apply italic text-gray-300; }
+  .prose-chat code {
+    @apply bg-navy-900/60 text-blue-300 rounded px-1.5 py-0.5 text-xs font-mono;
+  }
+  .prose-chat pre {
+    @apply bg-navy-900/60 rounded-lg p-3 mb-2 overflow-x-auto;
+  }
+  .prose-chat pre code {
+    @apply bg-transparent p-0 text-xs text-gray-300;
+  }
+  .prose-chat blockquote {
+    @apply border-l-2 border-blue-500 pl-3 italic text-gray-400 mb-2;
+  }
+  .prose-chat a { @apply text-blue-400 underline; }
+  .prose-chat table { @apply w-full text-xs mb-2 border-collapse; }
+  .prose-chat th { @apply text-left text-gray-300 font-semibold pb-1 border-b border-navy-600; }
+  .prose-chat td { @apply py-1 pr-3 border-b border-navy-700/50; }
+  .prose-chat hr { @apply border-navy-600 my-2; }
+}
