@@ -99,6 +99,24 @@ class Settings(BaseSettings):
     VIDEO_PROBE_TIMEOUT_SEC: int = 120
     VIDEO_FFMPEG_TIMEOUT_SEC: int = 900
 
+    # ── Phase 3: Langfuse tracing ────────────────────────────────────────────
+    # SDK reads LANGFUSE_* env vars; we also expose explicit settings below.
+    LANGFUSE_PUBLIC_KEY: str = ""
+    LANGFUSE_SECRET_KEY: str = ""
+    # Self-hosted UI (e.g. http://localhost:3100). Cloud default if keys set without host.
+    LANGFUSE_HOST: str = ""
+    LANGFUSE_BASE_URL: str = ""
+    # Browser trace links from Admin UI — copy “project id” from your Langfuse URL bar when unknown.
+    LANGFUSE_PROJECT_ID: str = ""
+
+    # ── Phase 3: RAG evaluation (RAGAS) ──────────────────────────────────────
+    RAGAS_EVAL_ENABLED: bool = False
+    # Random sample rate for online evaluation after each assistant reply (0.0–1.0).
+    RAGAS_EVAL_SAMPLE_RATE: float = 0.1
+    # Flag rows when any metric falls strictly below these thresholds (0–1).
+    RAGAS_FLAG_FAITHFULNESS_LT: float = 0.35
+    RAGAS_FLAG_ANSWER_RELEVANCY_LT: float = 0.35
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
@@ -126,6 +144,24 @@ class Settings(BaseSettings):
             return self.FRONTEND_PUBLIC_URL.strip().rstrip("/")
         origins = self.cors_origins_list
         return origins[0].rstrip("/") if origins else "http://localhost:3000"
+
+    @property
+    def langfuse_configured(self) -> bool:
+        return bool(
+            (self.LANGFUSE_PUBLIC_KEY or "").strip()
+            and (self.LANGFUSE_SECRET_KEY or "").strip()
+        )
+
+    @property
+    def langfuse_base_url(self) -> str:
+        """Base URL for Langfuse API (self-hosted or cloud region)."""
+        u = (self.LANGFUSE_BASE_URL or "").strip().rstrip("/")
+        if u:
+            return u
+        h = (self.LANGFUSE_HOST or "").strip().rstrip("/")
+        if h:
+            return h
+        return "https://cloud.langfuse.com"
 
     class Config:
         env_file = ".env"

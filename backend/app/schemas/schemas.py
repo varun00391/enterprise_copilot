@@ -243,6 +243,29 @@ class AuditLogOut(BaseModel):
         from_attributes = True
 
 
+class AnswerEvaluationOut(BaseModel):
+    id: UUID
+    message_id: UUID
+    dept_id: Optional[UUID]
+    faithfulness: Optional[float]
+    answer_relevancy: Optional[float]
+    flagged: bool
+    error_message: Optional[str]
+    langfuse_trace_id: Optional[str]
+    created_at: datetime
+    answer_preview: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EvaluationMetaOut(BaseModel):
+    """Non-secret hints for linking Admin UI to Langfuse."""
+
+    langfuse_ui_origin: Optional[str] = None
+    langfuse_project_id: Optional[str] = None
+
+
 # ─── Health ────────────────────────────────────────────────────────────────────
 
 class HealthStatus(BaseModel):

@@ -129,6 +129,7 @@ def run_multimodal_query(
     session_id: str,
     conversation_history: list = None,
     image_presigned_url: Optional[str] = None,
+    lf_client=None,
 ) -> dict:
     """
     Full multimodal pipeline:
@@ -170,5 +171,6 @@ def run_multimodal_query(
             query=query,
             chunks=fused_chunks,
             conversation_history=conversation_history or [],
+            lf_client=lf_client,
         ),
     }

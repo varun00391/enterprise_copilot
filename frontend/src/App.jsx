@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import UserManagementPage from './pages/UserManagementPage'
 import DeptManagementPage from './pages/DeptManagementPage'
 import AuditLogPage from './pages/AuditLogPage'
+import EvaluationsPage from './pages/EvaluationsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import VoiceAgentPage from './pages/VoiceAgentPage'
 import GoogleCallback from './pages/GoogleCallback'
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/admin/users" element={<ProtectedApp requireSuperAdmin><UserManagementPage /></ProtectedApp>} />
           <Route path="/admin/departments" element={<ProtectedApp requireAdmin><DeptManagementPage /></ProtectedApp>} />
           <Route path="/admin/audit-log" element={<ProtectedApp requireSuperAdmin><AuditLogPage /></ProtectedApp>} />
+          <Route path="/admin/evaluations" element={<ProtectedApp requireSuperAdmin><EvaluationsPage /></ProtectedApp>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

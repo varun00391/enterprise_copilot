@@ -1,6 +1,6 @@
 import re
 import uuid
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
@@ -293,6 +293,8 @@ async def query(
         user_message_id_for_response = edited_user_row.id
 
     crawl_scheduled = False
+    trace_sink: Dict[str, Any] = {}
+
     if not image_bytes and _message_is_url_only(q_stripped):
         from app.api.documents import schedule_web_crawl_job
 
@@ -325,6 +327,7 @@ async def query(
                 user_id=user_id,
                 session_id=str(session.id),
                 conversation_history=history,
+                trace_sink=trace_sink,
             )
             return
         yield from run_query_pipeline(
@@ -334,6 +337,7 @@ async def query(
             session_id=str(session.id),
             conversation_history=history,
             database_url=settings.DATABASE_URL,
+            trace_sink=trace_sink,
         )
 
     stream_source = pipe()
@@ -396,6 +400,17 @@ async def query(
             bg_db.add(audit)
             bg_db.commit()
             schedule_refresh_dept_analytics(settings.DATABASE_URL, user_dept_id)
+            from app.agents.evaluation_agent import maybe_schedule_chat_evaluation
+
+            maybe_schedule_chat_evaluation(
+                database_url=settings.DATABASE_URL,
+                dept_id=user_dept_id,
+                user_question=user_visible_content,
+                assistant_message_id=str(assistant_row.id),
+                answer_text=full_answer,
+                source_chunks=sources,
+                langfuse_trace_id=trace_sink.get("trace_id"),
+            )
             yield f"data: {json.dumps({'type': 'persisted', 'user_message_id': str(user_message_id_for_response), 'assistant_message_id': str(assistant_row.id)})}\n\n"
         finally:
             bg_db.close()

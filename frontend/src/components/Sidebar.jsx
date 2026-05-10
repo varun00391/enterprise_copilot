@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, MessageSquare, Upload, BookOpen,
-  Settings, LogOut, Users, Building2, ClipboardList, Brain, BarChart2, Radio
+  Settings, LogOut, Users, Building2, ClipboardList, Brain, BarChart2, Radio, Gauge
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import clsx from 'clsx'
@@ -17,14 +17,15 @@ const userNav = [
 ]
 
 const adminNav = [
-  { to: '/admin', icon: LayoutDashboard, label: 'Admin Dashboard' },
-  { to: '/admin/users', icon: Users, label: 'Users' },
-  { to: '/admin/departments', icon: Building2, label: 'Departments' },
-  { to: '/admin/audit-log', icon: ClipboardList, label: 'Audit Log' },
+  { to: '/admin', icon: LayoutDashboard, label: 'Admin Dashboard', requireSuper: false },
+  { to: '/admin/departments', icon: Building2, label: 'Departments', requireSuper: false },
+  { to: '/admin/users', icon: Users, label: 'Users', requireSuper: true },
+  { to: '/admin/evaluations', icon: Gauge, label: 'Evaluations', requireSuper: true },
+  { to: '/admin/audit-log', icon: ClipboardList, label: 'Audit Log', requireSuper: true },
 ]
 
 export default function Sidebar() {
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout, isAdmin, isSuperAdmin } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -50,7 +51,7 @@ export default function Sidebar() {
           </p>
         </div>
         <nav className="space-y-0.5">
-          {(isAdmin ? adminNav : userNav).map(({ to, icon: Icon, label }) => (
+          {(isAdmin ? adminNav.filter((item) => !item.requireSuper || isSuperAdmin) : userNav).map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

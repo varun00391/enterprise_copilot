@@ -133,6 +133,31 @@ class Feedback(Base):
     user = relationship("User", back_populates="feedbacks")
 
 
+class AnswerEvaluation(Base):
+    """RAGAS (or fallback) scores for assistant replies; supports review queues."""
+
+    __tablename__ = "answer_evaluations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    message_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("chat_messages.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    dept_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True, index=True)
+    faithfulness = Column(Float, nullable=True)
+    answer_relevancy = Column(Float, nullable=True)
+    flagged = Column(Boolean, default=False, nullable=False, index=True)
+    error_message = Column(Text, nullable=True)
+    raw_metrics = Column(JSON, nullable=True)
+    langfuse_trace_id = Column(String(120), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
+    message = relationship("ChatMessage")
+
+
 class DepartmentAnalytics(Base):
     __tablename__ = "department_analytics"
 

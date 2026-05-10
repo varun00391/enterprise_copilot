@@ -10,13 +10,35 @@ from sqlalchemy import func, extract
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import require_super_admin, require_admin, get_current_user
-from app.models.models import User, Department, Document, AuditLog, ChatMessage, ChatSession
+from app.models.models import User, Department, Document, AuditLog, ChatMessage, ChatSession, AnswerEvaluation
 from app.schemas.schemas import (
-    UserOut, UserUpdate, DepartmentCreate, DepartmentOut, AuditLogOut, DocumentOut
+    UserOut,
+    UserUpdate,
+    DepartmentCreate,
+    DepartmentOut,
+    AuditLogOut,
+    DocumentOut,
+    AnswerEvaluationOut,
+    EvaluationMetaOut,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def _answer_evaluations_with_previews(db: Session, rows: List[AnswerEvaluation]) -> List[AnswerEvaluationOut]:
+    out: List[AnswerEvaluationOut] = []
+    for ev in rows:
+        msg = db.query(ChatMessage).filter(ChatMessage.id == ev.message_id).first()
+        preview = (
+            (msg.content[:400] + "…")
+            if msg and msg.content and len(msg.content) > 400
+            else (msg.content if msg else None)
+        )
+        item = AnswerEvaluationOut.model_validate(ev).model_copy(update={"answer_preview": preview})
+        out.append(item)
+    return out
 
 
 # ─── Users ─────────────────────────────────────────────────────────────────────
@@ -316,6 +338,53 @@ def active_users_heatmap(
         {"day": days[d], "day_index": d, "hours": [{"hour": h, "count": matrix[d][h]} for h in range(24)]}
         for d in range(7)
     ]
+
+
+@router.get("/evaluations/meta", response_model=EvaluationMetaOut)
+def evaluations_ui_meta(current_user: User = Depends(require_super_admin)):
+    """Langfuse origin + optional project id for deep-links from Admin (no secrets)."""
+    return EvaluationMetaOut(
+        langfuse_ui_origin=settings.langfuse_base_url if settings.langfuse_configured else None,
+        langfuse_project_id=(settings.LANGFUSE_PROJECT_ID or "").strip() or None,
+    )
+
+
+@router.get("/evaluations", response_model=List[AnswerEvaluationOut])
+def list_answer_evaluations(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    flagged_only: Optional[bool] = Query(
+        None,
+        description="If true, only flagged rows; if false, only not flagged; omit for all.",
+    ),
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """RAGAS evaluation rows (Phase 3); newest first."""
+    q = db.query(AnswerEvaluation).order_by(AnswerEvaluation.created_at.desc())
+    if flagged_only is True:
+        q = q.filter(AnswerEvaluation.flagged.is_(True))
+    elif flagged_only is False:
+        q = q.filter(AnswerEvaluation.flagged.is_(False))
+    rows = q.offset(skip).limit(limit).all()
+    return _answer_evaluations_with_previews(db, rows)
+
+
+@router.get("/evaluations/flags", response_model=List[AnswerEvaluationOut])
+def list_flagged_answer_evaluations(
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Assistant replies flagged by RAGAS thresholds (subset of GET /evaluations)."""
+    rows = (
+        db.query(AnswerEvaluation)
+        .filter(AnswerEvaluation.flagged.is_(True))
+        .order_by(AnswerEvaluation.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return _answer_evaluations_with_previews(db, rows)
 
 
 @router.get("/export")

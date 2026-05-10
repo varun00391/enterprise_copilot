@@ -10,6 +10,7 @@ import structlog
 from openai import OpenAI
 
 from app.core.config import settings
+from app.services.langfuse_tracing import lf_observation
 
 log = structlog.get_logger()
 
@@ -162,6 +163,7 @@ def stream_answer(
     query: str,
     chunks: List[Dict[str, Any]],
     conversation_history: List[Dict[str, str]] = None,
+    lf_client=None,
 ) -> Generator[str, None, None]:
     """
     Collects the full LLM response, parses out the clean answer,
@@ -183,19 +185,37 @@ def stream_answer(
 
     full_response = ""
     try:
-        stream = client.chat.completions.create(
+        with lf_observation(
+            lf_client,
+            as_type="generation",
+            name="reasoning_completion",
             model=settings.OPENAI_CHAT_MODEL,
-            messages=messages,
-            temperature=0.1,
-            max_tokens=1500,
-            stream=True,
-        )
-        for chunk in stream:
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta.content
-            if delta:
-                full_response += delta
+            input={"question": query, "context_chars": len(context)},
+        ) as gen_obs:
+            stream = client.chat.completions.create(
+                model=settings.OPENAI_CHAT_MODEL,
+                messages=messages,
+                temperature=0.1,
+                max_tokens=1500,
+                stream=True,
+            )
+            for chunk in stream:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    full_response += delta
+            if gen_obs is not None:
+                try:
+                    answer_preview, conf_preview = _parse_response(full_response)
+                    gen_obs.update(
+                        output={
+                            "answer_preview": answer_preview[:4000],
+                            "confidence": conf_preview,
+                        }
+                    )
+                except Exception:
+                    pass
 
     except Exception as e:
         log.error("reasoning.stream_error", error=str(e))
@@ -219,12 +239,13 @@ def stream_answer(
             "Output only the 3 questions as a JSON array of strings, no explanation.\n"
             'Example: ["What is X?", "How does Y work?", "Can you explain Z?"]'
         )
-        fu_resp = client.chat.completions.create(
-            model=settings.OPENAI_CHAT_MODEL,
-            messages=[{"role": "user", "content": followup_prompt}],
-            temperature=0.7,
-            max_tokens=200,
-        )
+        with lf_observation(lf_client, as_type="generation", name="reasoning_followups", model=settings.OPENAI_CHAT_MODEL):
+            fu_resp = client.chat.completions.create(
+                model=settings.OPENAI_CHAT_MODEL,
+                messages=[{"role": "user", "content": followup_prompt}],
+                temperature=0.7,
+                max_tokens=200,
+            )
         fu_text = (fu_resp.choices[0].message.content or "").strip()
         if fu_text.startswith("["):
             suggested_followups = json.loads(fu_text)[:3]
@@ -249,6 +270,7 @@ def stream_answer_analytics(
     spreadsheet_bytes: Optional[bytes] = None,
     spreadsheet_type: Optional[str] = None,
     chart_description: Optional[str] = None,
+    lf_client=None,
 ) -> Generator[str, None, None]:
     """
     Non-streaming analytics LLM call packaged as SSE (token + metadata + follow-ups)
@@ -257,14 +279,15 @@ def stream_answer_analytics(
     from app.agents.analytics_agent import generate_analytics_answer
 
     try:
-        answer, confidence, sources = generate_analytics_answer(
-            query=query,
-            chunks=chunks,
-            spreadsheet_bytes=spreadsheet_bytes,
-            spreadsheet_type=spreadsheet_type,
-            conversation_history=conversation_history or [],
-            chart_description=chart_description,
-        )
+        with lf_observation(lf_client, as_type="span", name="reasoning_analytics"):
+            answer, confidence, sources = generate_analytics_answer(
+                query=query,
+                chunks=chunks,
+                spreadsheet_bytes=spreadsheet_bytes,
+                spreadsheet_type=spreadsheet_type,
+                conversation_history=conversation_history or [],
+                chart_description=chart_description,
+            )
     except Exception as e:
         log.error("reasoning.analytics_error", error=str(e))
         yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
@@ -282,12 +305,13 @@ def stream_answer_analytics(
             "Output only the 3 questions as a JSON array of strings, no explanation.\n"
             'Example: ["What is X?", "How does Y work?", "Can you explain Z?"]'
         )
-        fu_resp = client.chat.completions.create(
-            model=settings.OPENAI_CHAT_MODEL,
-            messages=[{"role": "user", "content": followup_prompt}],
-            temperature=0.7,
-            max_tokens=200,
-        )
+        with lf_observation(lf_client, as_type="generation", name="analytics_followups", model=settings.OPENAI_CHAT_MODEL):
+            fu_resp = client.chat.completions.create(
+                model=settings.OPENAI_CHAT_MODEL,
+                messages=[{"role": "user", "content": followup_prompt}],
+                temperature=0.7,
+                max_tokens=200,
+            )
         fu_text = (fu_resp.choices[0].message.content or "").strip()
         if fu_text.startswith("["):
             suggested_followups = json.loads(fu_text)[:3]
