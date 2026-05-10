@@ -40,6 +40,8 @@ services:
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:-orgmind_graph_secret}
       - GRAPH_RAG_ENABLED=${GRAPH_RAG_ENABLED:-false}
       - GRAPH_BUILD_ON_INGEST=${GRAPH_BUILD_ON_INGEST:-true}
+      # Prefer image-baked corpora; startup still fetch missing pieces under ~/nltk_data when needed
+      - NLTK_DATA=/usr/local/share/nltk_data
     depends_on:
       postgres:
         condition: service_healthy

@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY . .
 
 RUN mkdir -p /usr/local/share/nltk_data \
-    && python -c "import nltk; nltk.download('punkt_tab', download_dir='/usr/local/share/nltk_data'); nltk.download('punkt', download_dir='/usr/local/share/nltk_data')" \
+    && python -c "import nltk; d='/usr/local/share/nltk_data'; nltk.download('punkt_tab', download_dir=d); nltk.download('punkt', download_dir=d); nltk.download('averaged_perceptron_tagger_eng', download_dir=d)" \
     && chmod -R a+rX /usr/local/share/nltk_data
 ENV NLTK_DATA=/usr/local/share/nltk_data
 

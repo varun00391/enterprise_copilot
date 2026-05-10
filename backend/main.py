@@ -43,9 +43,28 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
+    _ensure_nltk_unstructured_corpora()
     Base.metadata.create_all(bind=engine)
     _seed_default_departments()
     _seed_admin_user()
+
+
+def _ensure_nltk_unstructured_corpora() -> None:
+    """Unstructured image/pdf paths need NLTK; NLTK 3.8.2+ expects averaged_perceptron_tagger_eng
+    (legacy averaged_perceptron_tagger alone does not satisfy pos_tag). Download into a writable dir.
+    """
+    import nltk
+    from pathlib import Path
+
+    try:
+        nltk.data.find("taggers/averaged_perceptron_tagger_eng")
+        return
+    except LookupError:
+        pass
+
+    dest = Path.home() / "nltk_data"
+    dest.mkdir(parents=True, exist_ok=True)
+    nltk.download("averaged_perceptron_tagger_eng", download_dir=str(dest), quiet=True)
 
 
 def _seed_default_departments():
