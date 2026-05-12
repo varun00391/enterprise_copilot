@@ -1,0 +1,59 @@
+name: Build in ACR and deploy Container Apps
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-container-apps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR remote build + Container Apps rollout
+        shell: bash
+        env:
+          RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+          ACR: ${{ vars.AZURE_ACR_NAME }}
+          CA_BACKEND: ${{ vars.AZURE_CONTAINER_APP_BACKEND }}
+          CA_FRONTEND: ${{ vars.AZURE_CONTAINER_APP_FRONTEND }}
+          IMG_BE: ${{ vars.IMAGE_BACKEND_REPO }}
+          IMG_FE: ${{ vars.IMAGE_FRONTEND_REPO }}
+        run: |
+          set -euo pipefail
+          az extension add --name containerapp --upgrade
+          az provider register --namespace Microsoft.App >/dev/null
+          LOGIN="$(az acr show -g "$RG" -n "$ACR" --query loginServer -o tsv)"
+
+          az acr build -g "$RG" -r "$ACR" --image "${IMG_BE}:latest" --file backend/Dockerfile backend
+          az acr build -g "$RG" -r "$ACR" --image "${IMG_FE}:latest" --file deployment/docker/frontend-acr-two-apps.Dockerfile .
+
+          az containerapp update -g "$RG" -n "$CA_BACKEND" --image "${LOGIN}/${IMG_BE}:latest"
+          az containerapp update -g "$RG" -n "$CA_FRONTEND" --image "${LOGIN}/${IMG_FE}:latest"
+
+          API_HOST="$(az containerapp show -g "$RG" -n "$CA_BACKEND" --query properties.configuration.ingress.fqdn -o tsv)"
+          WEB_HOST="$(az containerapp show -g "$RG" -n "$CA_FRONTEND" --query properties.configuration.ingress.fqdn -o tsv)"
+          ORIGIN="https://${WEB_HOST}"
+
+          az containerapp update -g "$RG" -n "$CA_FRONTEND" --merge-env-vars "BACKEND_FQDN=${API_HOST}"
+          az containerapp update -g "$RG" -n "$CA_BACKEND" \
+            --merge-env-vars "CORS_ORIGINS=${ORIGIN}" "FRONTEND_PUBLIC_URL=${ORIGIN}"
+
+          echo "::notice:: SPA URL ${ORIGIN}"
+          echo "::notice:: API https://${API_HOST}"
